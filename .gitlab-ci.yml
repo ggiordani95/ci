@@ -1,0 +1,44 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay2
+  USERNAME: $CI_REGISTRY_USERNAME
+  PASSWORD: $CI_REGISTRY_PASSWORD
+
+stages:
+  - build
+  - push
+  - run-scripts
+
+before_script:
+  - echo "${PASSWORD}" | docker login -u "${USERNAME}" --password-stdin
+
+build:
+  stage: build
+  script:
+    - echo "Building Docker image..."
+    - docker build -t ggiordani95/admin_rh_app:dev .
+    - echo "Docker build completed."
+    - echo "Listing Docker images..."
+    - docker images
+    - echo "Saving Docker image to tar file..."
+    - docker save ggiordani95/admin_rh_app:dev -o docker-image.tar
+    - echo "Docker image saved successfully."
+  artifacts:
+    paths:
+      - docker-image.tar
+
+push:
+  stage: push
+  dependencies:
+    - build
+  script:
+    - echo "Loading Docker image from tar file..."
+    - docker load -i docker-image.tar
+    - echo "Pushing Docker image to registry..."
+    - docker push ggiordani95/admin_rh_app:dev
+  only:
+    - develop
